@@ -25,6 +25,8 @@ library(xml2)
 #### Planit Setup ####
 #' @export
 Planit_Setup=function(env){
+  if (!require(reticulate)) install.packages("reticulate")
+
   if(sum(env==reticulate::conda_list()$name)==0){
     reticulate::conda_create(env)
   }
@@ -61,6 +63,8 @@ network_converter = planit_instance.converter_factory.create(ConverterType.NETWO
 OSM_Network=function(country, district=NULL, env, out=F){
   if (!require(dplyr)) install.packages("dplyr")
   if (!require(sf)) install.packages("sf")
+  if (!require(xml2)) install.packages("xml2")
+  if (!require(reticulate)) install.packages("reticulate")
   options(timeout=1000)
 
   osm_region=read.csv("https://raw.githubusercontent.com/ChiaJung-Yeh/PTAL/refs/heads/main/other_data/osm_region_geofabrik.csv")%>%
