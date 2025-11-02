@@ -20,6 +20,9 @@ library(lubridate)
 #### Download OSM Network ####
 #' @export
 OSM_Network=function(country, district=NULL){
+  if (!require(jsonlite)) install.packages("dplyr")
+  if (!require(jsonlite)) install.packages("sf")
+
   osm_region=read.csv("https://raw.githubusercontent.com/ChiaJung-Yeh/PTAL/refs/heads/main/data/osm_region_geofabrik.csv")%>%
     mutate(region=gsub("\\.", "", gsub("\\/", "-", region)))
   DIRTEMP=tempdir(check=T)
