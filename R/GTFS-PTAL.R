@@ -11,7 +11,7 @@ library(lubridate)
 # usethis::use_package("lubridate")
 
 
-# osm_data=read.csv("https://raw.githubusercontent.com/ChiaJung-Yeh/PTAL/refs/heads/main/data/osm_region_geofabrik.csv")%>%
+# osm_data=read.csv("https://raw.githubusercontent.com/ChiaJung-Yeh/PTAL/refs/heads/main/other_data/osm_region_geofabrik.csv")%>%
 #   mutate(region=gsub("\\.", "", gsub("\\/", "-", region)))%>%
 #   select(continent, region, subregion)
 # usethis::use_data(osm_data, overwrite=T)
@@ -23,7 +23,7 @@ OSM_Network=function(country, district=NULL){
   if (!require(dplyr)) install.packages("dplyr")
   if (!require(sf)) install.packages("sf")
 
-  osm_region=read.csv("https://raw.githubusercontent.com/ChiaJung-Yeh/PTAL/refs/heads/main/data/osm_region_geofabrik.csv")%>%
+  osm_region=read.csv("https://raw.githubusercontent.com/ChiaJung-Yeh/PTAL/refs/heads/main/other_data/osm_region_geofabrik.csv")%>%
     mutate(region=gsub("\\.", "", gsub("\\/", "-", region)))
   DIRTEMP=tempdir(check=T)
 
