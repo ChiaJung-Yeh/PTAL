@@ -1,3 +1,1 @@
-# GTFS-PTAL
-# PTAL
 # PTAL
