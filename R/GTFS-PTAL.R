@@ -4,11 +4,11 @@ library(sf)
 library(stringr)
 library(lubridate)
 
-usethis::use_package("dplyr")
-usethis::use_package("data.table")
-usethis::use_package("sf")
-usethis::use_package("stringr")
-usethis::use_package("lubridate")
+# usethis::use_package("dplyr")
+# usethis::use_package("data.table")
+# usethis::use_package("sf")
+# usethis::use_package("stringr")
+# usethis::use_package("lubridate")
 
 
 # osm_data=read.csv("https://raw.githubusercontent.com/ChiaJung-Yeh/PTAL/refs/heads/main/data/osm_region_geofabrik.csv")%>%
