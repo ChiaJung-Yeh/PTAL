@@ -33,7 +33,7 @@ Planit_Setup=function(env){
   use_condaenv(env)
   if(!py_module_available("planit")){
     py_install("PLANit-Python", pip=T)
-    py_install("numpy==1.26.4", pip = TRUE)
+    py_install("numpy==1.26.4", pip=T)
   }
 
   py_run_string("
@@ -62,6 +62,7 @@ network_converter = planit_instance.converter_factory.create(ConverterType.NETWO
 #' @export
 OSM_Network=function(country, district=NULL, env, out=F){
   if (!require(dplyr)) install.packages("dplyr")
+  if (!require(data.table)) install.packages("data.table")
   if (!require(sf)) install.packages("sf")
   if (!require(xml2)) install.packages("xml2")
   if (!require(reticulate)) install.packages("reticulate")
