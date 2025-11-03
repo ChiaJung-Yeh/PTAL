@@ -311,7 +311,8 @@ gtfs_ptal=function(sarea_center, gtfs, road_net, test_date, time_period, tz, gtf
 
   grid_edf=left_join(sarea_center, grid_edf)%>%
     mutate(EDF=ifelse(is.na(EDF), 0, EDF),
-           PTAL=ifelse(is.na(PTAL), 0, PTAL))
+           PTAL=ifelse(is.na(PTAL), 0, PTAL),
+           PTAL_col=ifelse(is.na(PTAL_col), "white", PTAL_col))
 
   return(grid_edf)
 }
