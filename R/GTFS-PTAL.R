@@ -3,8 +3,10 @@ library(data.table)
 library(sf)
 library(stringr)
 library(lubridate)
+library(fasttime)
 library(reticulate)
 library(xml2)
+library(dodgr)
 
 # usethis::use_package("dplyr")
 # usethis::use_package("data.table")
@@ -204,43 +206,6 @@ read_gtfs=function(x){
 }
 
 
-
-
-
-
-# CRS=7856
-# sarea=read_sf("G:/AU Data/Digital Boundary/Greater Capital City Statistical Areas (GCC)")%>%
-#   filter(GCC_NAME21=="Greater Sydney")%>%
-#   st_transform(crs=CRS)
-# bbox=st_bbox(st_transform(sarea, crs=4326))
-#
-# sarea=read_sf("G:/AU Data/Digital Boundary/Suburbs and Localities (SAL)")%>%
-#   filter(SAL_NAME21=="Sydney")%>%
-#   st_transform(crs=CRS)
-# # sarea_grid=st_make_grid(sarea, cellsize=100)
-# sarea_center=st_make_grid(sarea, cellsize=100, what="centers")%>%
-#   st_coordinates(.)%>%
-#   data.table()%>%
-#   st_as_sf(coords=c("X","Y"), crs=CRS, remove=F)
-# sarea_center=sarea_center[lengths(st_intersects(sarea_center, sarea))!=0,]%>%
-#   mutate(GridID=c(1:nrow(.)))
-#
-#
-# gtfs=read_gtfs("C:/Users/USER/Downloads/full_greater_sydney_gtfs_static_0.zip")
-# gtfs$stops=st_as_sf(gtfs$stops, coords=c("stop_lon", "stop_lat"), crs=4326, remove=F)%>%
-#   st_transform(crs=CRS)
-
-
-# tm_shape(sarea)+
-#   tm_polygons()+
-#   tm_shape(sarea_center)+
-#   tm_dots()
-
-# temp_id=st_intersects(st_buffer(sarea_center, 1000), gtfs$stops)
-# grid_stop=data.table(GridID=rep(sarea_center$GridID, times=lengths(temp_id)),
-#                      stop_id=gtfs$stops$stop_id[unlist(temp_id)])
-#
-# gtfs$stops
 
 
 
