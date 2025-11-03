@@ -55,8 +55,10 @@ network_converter = planit_instance.converter_factory.create(ConverterType.NETWO
 ")
   print("Setup Successfully!!")
 
-  url=read.table("https://raw.githubusercontent.com/ChiaJung-Yeh/PTAL/refs/heads/main/other_data/osmconvert_win.txt")$V1
-  download.file(url, paste0(getwd(), "/osmconvert.exe"), mode="wb")
+  if(sum(dir(getwd())=="osmconvert.exe")==0){
+    url=read.table("https://raw.githubusercontent.com/ChiaJung-Yeh/PTAL/refs/heads/main/other_data/osmconvert_win.txt")$V1
+    download.file(url, paste0(getwd(), "/osmconvert.exe"), mode="wb")
+  }
 }
 
 
