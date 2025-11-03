@@ -54,13 +54,16 @@ planit_instance = Planit()
 network_converter = planit_instance.converter_factory.create(ConverterType.NETWORK)
 ")
   print("Setup Successfully!!")
+
+  # download.file("")
 }
+
 
 
 
 #### Download OSM Network ####
 #' @export
-OSM_Network=function(country, district=NULL, env, out=F){
+OSM_Network=function(country, district=NULL, bbox, out=F){
   if (!require(dplyr)) install.packages("dplyr")
   if (!require(data.table)) install.packages("data.table")
   if (!require(sf)) install.packages("sf")
@@ -80,33 +83,44 @@ OSM_Network=function(country, district=NULL, env, out=F){
 
   if(nrow(osm_region)==0){
     stop("Please use the valid country and district name! Check out 'osm_data' for the valid region (country) and subregion (district) name!")
+  }else if(nrow(osm_region)>1){
+    stop("This function can only work on a single region/subregion. Please choose one of the following subregions:\n", paste(osm_region$subregion, collapse=", "))
   }
 
   cat("Download OSM Data...\n")
-  for(i in c(1:nrow(osm_region))){
-    finame=ifelse(osm_region$subregion[i]!="", paste0(osm_region$region[i], "_", osm_region$subregion[i]), osm_region$region[i])
-    download.file(osm_region$osm_pbf[i], paste0(DIRTEMP, "/", finame, ".osm.pbf"), mode="wb")
-    gdal_utils(
-      util="vectortranslate",
-      source=paste0(DIRTEMP, "/", finame, ".osm.pbf"),
-      destination=paste0(DIRTEMP, "/", finame,".gpkg"),
-      options = c("-f", "GPKG"),
-      quiet=T
-    )
-    road_sf=st_read(paste0(DIRTEMP, "/", finame,".gpkg"), layer="lines", quiet=T)[, c("osm_id","name","highway","other_tags")]
+  finame=ifelse(osm_region$subregion!="", paste0(osm_region$region, "_", osm_region$subregion), osm_region$region)
+  download.file(osm_region$osm_pbf, paste0(DIRTEMP, "/", finame, ".osm.pbf"), mode="wb")
+
+  if(!is.null(bbox)){
+    system2("C:/Users/USER/Downloads/osmconvert64-0.8.8p.exe",
+            c(paste0(DIRTEMP, "/", country, ".osm.pbf"),
+              paste0("-b=", paste(bbox, collapse=",")),
+              paste0("-o=", paste0(DIRTEMP, "/", country, "_final.osm.pbf"))))
+  }else{
+    file.rename(paste0(DIRTEMP, "/", finame, ".osm.pbf"), gsub(".osm.pbf", "_final.osm.pbf", paste0(DIRTEMP, "/", finame, ".osm.pbf")))
   }
+  gc()
+
+  gdal_utils(
+    util="vectortranslate",
+    source=paste0(DIRTEMP, "/", finame, "_final.osm.pbf"),
+    destination=paste0(DIRTEMP, "/", finame,"_final.gpkg"),
+    options=c("-f", "GPKG"),
+    quiet=T
+  )
+  road_sf=st_read(paste0(DIRTEMP, "/", finame, "_final.gpkg"), layer="lines")
 
 
   cat("Convert OSM to Network...\n")
   py_run_string(paste0("osm_reader = network_converter.create_reader(NetworkReaderType.OSM, '", country, "')"))
-  py_run_string(paste0("osm_reader.settings.set_input_file('", paste0(DIRTEMP, "/", finame, ".osm.pbf"), "')"))
+  py_run_string(paste0("osm_reader.settings.set_input_file('", paste0(DIRTEMP, "/", country, "_final.osm.pbf"), "')"))
   py_run_string("planit_writer = network_converter.create_writer(NetworkWriterType.PLANIT)")
-  py_run_string(paste0("planit_writer.settings.set_output_directory('", paste0(DIRTEMP, "/", finame), "')"))
+  py_run_string(paste0("planit_writer.settings.set_output_directory('", DIRTEMP, "')"))
   py_run_string("network_converter.convert(osm_reader, planit_writer)")
 
 
   cat("Extract Node & Link...\n")
-  doc=xml2::read_xml(paste0(DIRTEMP, "/", finame, "/network.xml"))
+  doc=xml2::read_xml(paste0(DIRTEMP, "/network.xml"))
 
   # Extract nodes
   nodes_xml=xml_find_all(doc, ".//node")
@@ -161,6 +175,61 @@ OSM_Network=function(country, district=NULL, env, out=F){
   unlink(DIRTEMP, recursive=T)
   return(list(road_sf=road_sf, nodes=nodes, links=links, link_seg=link_seg, links_geo=links_geo))
 }
+
+
+
+CRS=7856
+sarea=read_sf("G:/AU Data/Digital Boundary/Greater Capital City Statistical Areas (GCC)")%>%
+  filter(GCC_NAME21=="Greater Sydney")%>%
+  st_transform(crs=CRS)
+bbox=st_bbox(st_transform(sarea, crs=4326))
+
+sarea=read_sf("G:/AU Data/Digital Boundary/Suburbs and Localities (SAL)")%>%
+  filter(SAL_NAME21=="Sydney")%>%
+  st_transform(crs=CRS)
+# sarea_grid=st_make_grid(sarea, cellsize=100)
+sarea_center=st_make_grid(sarea, cellsize=100, what="centers")%>%
+  st_coordinates(.)%>%
+  data.table()%>%
+  st_as_sf(coords=c("X","Y"), crs=CRS, remove=F)
+sarea_center=sarea_center[lengths(st_intersects(sarea_center, sarea))!=0,]%>%
+  mutate(GridID=c(1:nrow(.)))
+
+
+read_gtfs=function(x){
+  DIRTEMP=gsub("\\\\", "/", tempdir(check=T))
+  untar(x, exdir=paste0(DIRTEMP, "/gtfs"))
+
+  dir_files=dir(paste0(DIRTEMP, "/gtfs"), full.names=T)
+  fir_files=dir_files[grepl(paste(c("stop","routes","calendar","trips"), collapse="|"), dir_files)]
+  all_dt=list()
+  for(i in fir_files){
+    all_dt[[gsub(".csv|.txt", "", tail(unlist(strsplit(i, "/")), 1))]]=fread(i)
+  }
+
+  unlink(DIRTEMP, recursive=T)
+  return(all_dt)
+}
+
+gtfs=read_gtfs("C:/Users/USER/Downloads/full_greater_sydney_gtfs_static_0.zip")
+gtfs$stops=st_as_sf(gtfs$stops, coords=c("stop_lon", "stop_lat"), crs=4326, remove=F)%>%
+  st_transform(crs=CRS)
+
+
+# tm_shape(sarea)+
+#   tm_polygons()+
+#   tm_shape(sarea_center)+
+#   tm_dots()
+
+temp_id=st_intersects(st_buffer(sarea_center, 1000), gtfs$stops)
+grid_stop=data.table(GridID=rep(sarea_center$GridID, times=lengths(temp_id)),
+                     stop_id=gtfs$stops$stop_id[unlist(temp_id)])
+
+gtfs$stops
+
+
+
+
 
 
 
