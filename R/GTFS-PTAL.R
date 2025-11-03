@@ -94,6 +94,7 @@ OSM_Network=function(country, district=NULL, bbox=NULL, out=F){
   download.file(osm_region$osm_pbf, paste0(DIRTEMP, "/", finame, ".osm.pbf"), mode="wb")
 
   if(!is.null(bbox)){
+    cat("Clip OSM Data...\n")
     system2(paste0(getwd(), "/osmconvert.exe"),
             c(paste0(DIRTEMP, "/", country, ".osm.pbf"),
               paste0("-b=", paste(bbox, collapse=",")),
@@ -110,7 +111,7 @@ OSM_Network=function(country, district=NULL, bbox=NULL, out=F){
     options=c("-f", "GPKG"),
     quiet=T
   )
-  road_sf=st_read(paste0(DIRTEMP, "/", finame, "_final.gpkg"), layer="lines")
+  road_sf=st_read(paste0(DIRTEMP, "/", finame, "_final.gpkg"), layer="lines", quiet=T)
 
 
   cat("Convert OSM to Network...\n")
@@ -167,11 +168,11 @@ OSM_Network=function(country, district=NULL, bbox=NULL, out=F){
 
 
   if (nchar(out)!=0 & out!=F){
-    fwrite(nodes, paste0(out, "/", finame, "_node.csv"))
-    fwrite(links, paste0(out, "/", finame, "_link.csv"))
-    fwrite(link_seg, paste0(out, "/", finame, "_linksegment.csv"))
-    write_sf(road_sf, paste0(out, "/", finame, "_osmline.gpkg"))
-    write_sf(links_geo, paste0(out, "/", finame, "_linkgeo.shp"))
+    fwrite(nodes, paste0(out, "_node.csv"))
+    fwrite(links, paste0(out, "_link.csv"))
+    fwrite(link_seg, paste0(out, "_linksegment.csv"))
+    write_sf(road_sf, paste0(out, "_osmline.gpkg"))
+    write_sf(links_geo, paste0(out, "_linkgeo.shp"))
   }
 
   unlink(DIRTEMP, recursive=T)
