@@ -2,3 +2,4 @@
 
 export(OSM_Network)
 export(Planit_Setup)
+export(read_gtfs)

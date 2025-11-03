@@ -55,9 +55,9 @@ network_converter = planit_instance.converter_factory.create(ConverterType.NETWO
 ")
   print("Setup Successfully!!")
 
-  # download.file("")
+  url=read.table("https://raw.githubusercontent.com/ChiaJung-Yeh/PTAL/refs/heads/main/other_data/osmconvert_win.txt")$V1
+  download.file(url, paste0(getwd(), "/osmconvert.exe"), mode="wb")
 }
-
 
 
 
@@ -92,7 +92,7 @@ OSM_Network=function(country, district=NULL, bbox, out=F){
   download.file(osm_region$osm_pbf, paste0(DIRTEMP, "/", finame, ".osm.pbf"), mode="wb")
 
   if(!is.null(bbox)){
-    system2("C:/Users/USER/Downloads/osmconvert64-0.8.8p.exe",
+    system2(paste0(getwd(), "/osmconvert.exe"),
             c(paste0(DIRTEMP, "/", country, ".osm.pbf"),
               paste0("-b=", paste(bbox, collapse=",")),
               paste0("-o=", paste0(DIRTEMP, "/", country, "_final.osm.pbf"))))
@@ -113,7 +113,7 @@ OSM_Network=function(country, district=NULL, bbox, out=F){
 
   cat("Convert OSM to Network...\n")
   py_run_string(paste0("osm_reader = network_converter.create_reader(NetworkReaderType.OSM, '", country, "')"))
-  py_run_string(paste0("osm_reader.settings.set_input_file('", paste0(DIRTEMP, "/", country, "_final.osm.pbf"), "')"))
+  py_run_string(paste0("osm_reader.settings.set_input_file('", paste0(DIRTEMP, "/", finame, "_final.osm.pbf"), "')"))
   py_run_string("planit_writer = network_converter.create_writer(NetworkWriterType.PLANIT)")
   py_run_string(paste0("planit_writer.settings.set_output_directory('", DIRTEMP, "')"))
   py_run_string("network_converter.convert(osm_reader, planit_writer)")
@@ -145,7 +145,7 @@ OSM_Network=function(country, district=NULL, bbox, out=F){
 
   temp=st_drop_geometry(road_sf)[, c("osm_id","highway")]
   setDT(temp)
-  links=merge.data.table(links, temp, by.x="externalid", by.y="osm_id")
+  links=merge.data.table(links, temp, by.x="externalid", by.y="osm_id", all.x=T)
 
   links_geo=select(links, linkid, geometry)
   links_geo$geometry=lapply(strsplit(links_geo$geometry, " "), function(x) matrix(as.numeric(unlist(strsplit(x, ","))), ncol=2, byrow=T)[,2:1])%>%
@@ -178,29 +178,18 @@ OSM_Network=function(country, district=NULL, bbox, out=F){
 
 
 
-CRS=7856
-sarea=read_sf("G:/AU Data/Digital Boundary/Greater Capital City Statistical Areas (GCC)")%>%
-  filter(GCC_NAME21=="Greater Sydney")%>%
-  st_transform(crs=CRS)
-bbox=st_bbox(st_transform(sarea, crs=4326))
-
-sarea=read_sf("G:/AU Data/Digital Boundary/Suburbs and Localities (SAL)")%>%
-  filter(SAL_NAME21=="Sydney")%>%
-  st_transform(crs=CRS)
-# sarea_grid=st_make_grid(sarea, cellsize=100)
-sarea_center=st_make_grid(sarea, cellsize=100, what="centers")%>%
-  st_coordinates(.)%>%
-  data.table()%>%
-  st_as_sf(coords=c("X","Y"), crs=CRS, remove=F)
-sarea_center=sarea_center[lengths(st_intersects(sarea_center, sarea))!=0,]%>%
-  mutate(GridID=c(1:nrow(.)))
-
-
+#### Read GTFS Data ####
+#' @export
 read_gtfs=function(x){
   DIRTEMP=gsub("\\\\", "/", tempdir(check=T))
-  untar(x, exdir=paste0(DIRTEMP, "/gtfs"))
 
-  dir_files=dir(paste0(DIRTEMP, "/gtfs"), full.names=T)
+  if(grepl(".zip", x)){
+    untar(x, exdir=paste0(DIRTEMP, "/gtfs"))
+    dir_files=dir(paste0(DIRTEMP, "/gtfs"), full.names=T)
+  }else{
+    dir_files=dir(x, full.names=T)
+  }
+
   fir_files=dir_files[grepl(paste(c("stop","routes","calendar","trips"), collapse="|"), dir_files)]
   all_dt=list()
   for(i in fir_files){
@@ -211,9 +200,32 @@ read_gtfs=function(x){
   return(all_dt)
 }
 
-gtfs=read_gtfs("C:/Users/USER/Downloads/full_greater_sydney_gtfs_static_0.zip")
-gtfs$stops=st_as_sf(gtfs$stops, coords=c("stop_lon", "stop_lat"), crs=4326, remove=F)%>%
-  st_transform(crs=CRS)
+
+
+
+
+
+# CRS=7856
+# sarea=read_sf("G:/AU Data/Digital Boundary/Greater Capital City Statistical Areas (GCC)")%>%
+#   filter(GCC_NAME21=="Greater Sydney")%>%
+#   st_transform(crs=CRS)
+# bbox=st_bbox(st_transform(sarea, crs=4326))
+#
+# sarea=read_sf("G:/AU Data/Digital Boundary/Suburbs and Localities (SAL)")%>%
+#   filter(SAL_NAME21=="Sydney")%>%
+#   st_transform(crs=CRS)
+# # sarea_grid=st_make_grid(sarea, cellsize=100)
+# sarea_center=st_make_grid(sarea, cellsize=100, what="centers")%>%
+#   st_coordinates(.)%>%
+#   data.table()%>%
+#   st_as_sf(coords=c("X","Y"), crs=CRS, remove=F)
+# sarea_center=sarea_center[lengths(st_intersects(sarea_center, sarea))!=0,]%>%
+#   mutate(GridID=c(1:nrow(.)))
+#
+#
+# gtfs=read_gtfs("C:/Users/USER/Downloads/full_greater_sydney_gtfs_static_0.zip")
+# gtfs$stops=st_as_sf(gtfs$stops, coords=c("stop_lon", "stop_lat"), crs=4326, remove=F)%>%
+#   st_transform(crs=CRS)
 
 
 # tm_shape(sarea)+
@@ -221,11 +233,11 @@ gtfs$stops=st_as_sf(gtfs$stops, coords=c("stop_lon", "stop_lat"), crs=4326, remo
 #   tm_shape(sarea_center)+
 #   tm_dots()
 
-temp_id=st_intersects(st_buffer(sarea_center, 1000), gtfs$stops)
-grid_stop=data.table(GridID=rep(sarea_center$GridID, times=lengths(temp_id)),
-                     stop_id=gtfs$stops$stop_id[unlist(temp_id)])
-
-gtfs$stops
+# temp_id=st_intersects(st_buffer(sarea_center, 1000), gtfs$stops)
+# grid_stop=data.table(GridID=rep(sarea_center$GridID, times=lengths(temp_id)),
+#                      stop_id=gtfs$stops$stop_id[unlist(temp_id)])
+#
+# gtfs$stops
 
 
 
