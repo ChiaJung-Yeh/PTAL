@@ -63,7 +63,7 @@ network_converter = planit_instance.converter_factory.create(ConverterType.NETWO
 
 #### Download OSM Network ####
 #' @export
-OSM_Network=function(country, district=NULL, bbox, out=F){
+OSM_Network=function(country, district=NULL, bbox=NULL, out=F){
   if (!require(dplyr)) install.packages("dplyr")
   if (!require(data.table)) install.packages("data.table")
   if (!require(sf)) install.packages("sf")

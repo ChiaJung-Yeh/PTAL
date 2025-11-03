@@ -1,10 +1,10 @@
 Package: PTAL
-Title: What the Package Does (One Line, Title Case)
+Title: Public Transport Accessibility Level Analysis
 Version: 1.0
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
+    person("Chia Jung", "Yeh", , "chia-jung.yeh@sydney.edu.au", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
+Description: Analyse the public transport accessibility level using GTFS data and OSM network.
 License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
     license
 Encoding: UTF-8
