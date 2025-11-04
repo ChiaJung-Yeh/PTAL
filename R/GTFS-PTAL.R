@@ -13,8 +13,10 @@ library(dodgr)
 # usethis::use_package("sf")
 # usethis::use_package("stringr")
 # usethis::use_package("lubridate")
+# usethis::use_package("fasttime")
 # usethis::use_package("reticulate")
 # usethis::use_package("xml2")
+# usethis::use_package("dodgr")
 
 
 # osm_data=read.csv("https://raw.githubusercontent.com/ChiaJung-Yeh/PTAL/refs/heads/main/other_data/osm_region_geofabrik.csv")%>%
@@ -283,7 +285,6 @@ gtfs_ptal=function(sarea_center, gtfs, stop_times_sum, road_net, gtfs_mode){
   setDT(route_pair_od)
 
 
-
   cat("PTAL calculation...\n")
   grid_stop=merge.data.table(grid_stop, route_pair_od[, by=.(GridID, stop_id), .(Distance=sum(Distance))], sort=F)%>%
     dplyr::select(GridID, stop_id, Distance)
@@ -302,33 +303,31 @@ gtfs_ptal=function(sarea_center, gtfs, stop_times_sum, road_net, gtfs_mode){
 
   grid_edf=mutate(grid_stop_times, WalkTime=Distance/1000/4.8*60,
                   SWT=60/Trips*0.5, AWT=SWT+Reliability, TAT=WalkTime+AWT,
-                  EDF= 0.5*(60/TAT))
+                  EDF=0.5*(60/TAT))
   # group_by(GridID, mode_type)%>%
   # mutate(weight=ifelse(EDF==max(EDF), 1, 0.5))
   grid_edf[, weight := ifelse(EDF==max(EDF), 1, 0.5), by=.(GridID, mode_type)]
-  grid_edf=grid_edf[, by=.(GridID), .(EDF=sum(EDF*weight))]
-  grid_edf=mutate(grid_edf, PTAL=case_when(
-    EDF==0 ~ "0",
-    EDF<=2.5 ~ "1a",
-    EDF<=5 ~ "1b",
-    EDF<=10 ~ "2",
-    EDF<=15 ~ "3",
-    EDF<=20 ~ "4",
-    EDF<=25 ~ "5",
-    EDF<=40 ~ "6a",
-    EDF>40 ~ "6b",
-    TRUE ~ "0"
-  ), PTAL=factor(PTAL, levels=c("0","1a","1b","2","3","4","5","6a","6b")))%>%
-    left_join(data.frame(PTAL=c("0","1a","1b","2","3","4","5","6a","6b"),
-                         PTAL_col=c("white","#16497D","#116FB8","#27ADE3","#91C953","#FFF101","#FBC08E","#EE1D23","#841517")))
 
+  grid_edf_sum=grid_edf[, by=.(GridID), .(EDF=sum(EDF*weight))]
+  # grid_edf_sum=mutate(grid_edf_sum, PTAL=case_when(
+  #   EDF==0 ~ "0",
+  #   EDF<=2.5 ~ "1a",
+  #   EDF<=5 ~ "1b",
+  #   EDF<=10 ~ "2",
+  #   EDF<=15 ~ "3",
+  #   EDF<=20 ~ "4",
+  #   EDF<=25 ~ "5",
+  #   EDF<=40 ~ "6a",
+  #   EDF>40 ~ "6b",
+  #   TRUE ~ "0"
+  # ), PTAL=factor(PTAL, levels=c("0","1a","1b","2","3","4","5","6a","6b")))%>%
+  #   left_join(data.frame(PTAL=c("0","1a","1b","2","3","4","5","6a","6b"),
+  #                        PTAL_col=c("white","#16497D","#116FB8","#27ADE3","#91C953","#FFF101","#FBC08E","#EE1D23","#841517")))
 
-  grid_edf=left_join(sarea_center, grid_edf)%>%
-    mutate(EDF=ifelse(is.na(EDF), 0, EDF),
-           PTAL=ifelse(is.na(PTAL), 0, PTAL),
-           PTAL_col=ifelse(is.na(PTAL_col), "white", PTAL_col))
+  grid_edf_sum=left_join(sarea_center, grid_edf_sum)%>%
+    mutate(EDF=ifelse(is.na(EDF), 0, EDF))
 
-  return(grid_edf)
+  return(grid_edf_sum)
 }
 
 

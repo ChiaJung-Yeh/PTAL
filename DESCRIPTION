@@ -15,7 +15,9 @@ Depends:
 LazyData: true
 Imports: 
     data.table,
+    dodgr,
     dplyr,
+    fasttime,
     lubridate,
     reticulate,
     sf,
