@@ -207,30 +207,13 @@ read_gtfs=function(x){
 
 
 
-#### Calculate PTAL ####
+#### GTFS Summary ####
 #' @export
-gtfs_ptal=function(sarea_center, gtfs, road_net, test_date, time_period, tz, gtfs_mode){
+gtfs_summary=function(gtfs, test_date, time_period, tz){
   if (!require(dplyr)) install.packages("dplyr")
   if (!require(data.table)) install.packages("data.table")
   if (!require(sf)) install.packages("sf")
 
-
-
-  cat("Match PT stops for each grid...\n")
-  temp_id=st_intersects(st_buffer(sarea_center, 1000), gtfs$stops)
-  grid_stop=data.table(GridID=rep(sarea_center$GridID, times=lengths(temp_id)),
-                       stop_id=gtfs$stops$stop_id[unlist(temp_id)])
-  temp=st_transform(sarea_center[,"GridID"], crs=4326)%>%
-    cbind(st_coordinates(.))%>%
-    st_drop_geometry()
-  grid_stop=merge.data.table(grid_stop, temp, sort=F)%>%
-    rename(X_O=X, Y_O=Y)%>%
-    merge.data.table(st_drop_geometry(gtfs$stops)[, c("stop_id","stop_lat","stop_lon")], sort=F)%>%
-    rename(X_D=stop_lon, Y_D=stop_lat)
-
-
-
-  cat("Tidy GTFS data...\n")
   temp=gtfs$calendar_dates[exception_type==2]%>%
     mutate(date=as.Date(as.character(date), format="%Y%m%d"))%>%
     filter(date==test_date)
@@ -251,12 +234,42 @@ gtfs_ptal=function(sarea_center, gtfs, road_net, test_date, time_period, tz, gtf
     merge.data.table(unique(gtfs$routes[, c("route_id","route_type")]), by="route_id")%>%
     merge.data.table(gtfs_mode, by="route_type")
 
+  return(stop_times_sum)
+}
+
+
+
+#### Calculate PTAL ####
+#' @export
+gtfs_ptal=function(sarea_center, gtfs, stop_times_sum, road_net, gtfs_mode){
+  if (!require(dplyr)) install.packages("dplyr")
+  if (!require(data.table)) install.packages("data.table")
+  if (!require(sf)) install.packages("sf")
+
+  cat("Match PT stops for each grid...\n")
+  temp_id=st_intersects(st_buffer(sarea_center, 1000), gtfs$stops)
+  grid_stop=data.table(GridID=rep(sarea_center$GridID, times=lengths(temp_id)),
+                       stop_id=gtfs$stops$stop_id[unlist(temp_id)])
+  temp=st_transform(sarea_center[,"GridID"], crs=4326)%>%
+    cbind(st_coordinates(.))%>%
+    st_drop_geometry()
+  grid_stop=merge.data.table(grid_stop, temp, sort=F)%>%
+    rename(X_O=X, Y_O=Y)%>%
+    merge.data.table(st_drop_geometry(gtfs$stops)[, c("stop_id","stop_lat","stop_lon")], sort=F)%>%
+    rename(X_D=stop_lon, Y_D=stop_lat)
+
+  if(nrow(grid_stop)==0){
+    grid_edf=select(sarea_center, GridID, X, Y)%>%
+      mutate(EDF=0, PTAL=0, PTAL_col="white")
+    return(grid_edf)
+  }
+
 
 
   cat("Routing analysis (walking distance)...\n")
-  temp=range(grid_stop$X_O, grid_stop$X_D)
+  temp=range(grid_stop$X_O, grid_stop$X_D)+c(-0.001,0.001)
   road_net_temp=road_net[road_net$from_lon>=temp[1] & road_net$to_lon>=temp[1] & road_net$from_lon<=temp[2] & road_net$to_lon<=temp[2],]
-  temp=range(grid_stop$Y_O, grid_stop$Y_D)
+  temp=range(grid_stop$Y_O, grid_stop$Y_D)+c(-0.001,0.001)
   road_net_temp=road_net_temp[road_net_temp$from_lat>=temp[1] & road_net_temp$to_lat>=temp[1] & road_net_temp$from_lat<=temp[2] & road_net_temp$to_lat<=temp[2],]
 
 
@@ -293,7 +306,7 @@ gtfs_ptal=function(sarea_center, gtfs, road_net, test_date, time_period, tz, gtf
   # group_by(GridID, mode_type)%>%
   # mutate(weight=ifelse(EDF==max(EDF), 1, 0.5))
   grid_edf[, weight := ifelse(EDF==max(EDF), 1, 0.5), by=.(GridID, mode_type)]
-  grid_edf=grid_edf[, by=.(GridID), .(EDF=sum(EDF-weight))]
+  grid_edf=grid_edf[, by=.(GridID), .(EDF=sum(EDF*weight))]
   grid_edf=mutate(grid_edf, PTAL=case_when(
     EDF==0 ~ "0",
     EDF<=2.5 ~ "1a",
@@ -303,7 +316,8 @@ gtfs_ptal=function(sarea_center, gtfs, road_net, test_date, time_period, tz, gtf
     EDF<=20 ~ "4",
     EDF<=25 ~ "5",
     EDF<=40 ~ "6a",
-    TRUE ~ "6b"
+    EDF>40 ~ "6b",
+    TRUE ~ "0"
   ), PTAL=factor(PTAL, levels=c("0","1a","1b","2","3","4","5","6a","6b")))%>%
     left_join(data.frame(PTAL=c("0","1a","1b","2","3","4","5","6a","6b"),
                          PTAL_col=c("white","#16497D","#116FB8","#27ADE3","#91C953","#FFF101","#FBC08E","#EE1D23","#841517")))
