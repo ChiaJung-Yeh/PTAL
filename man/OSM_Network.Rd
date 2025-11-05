@@ -35,7 +35,7 @@ Maintainer: Chia-Jung (Robert), Yeh  \email{chia-jung.yeh@sydney.edu.au}
 }
 \examples{
 # Make sure the CRS of a box is EPSG:4326
-area_box=st_box(st_transform(greater_sydney, crs=4326))
+area_box=st_bbox(st_transform(greater_sydney, crs=4326))
 
 # Retrieve Greater Sydney road network
 OSM_Network(country="Australia", bbox=NULL)
