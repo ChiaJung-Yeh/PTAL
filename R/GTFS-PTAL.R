@@ -17,6 +17,7 @@ library(dodgr)
 # usethis::use_package("reticulate")
 # usethis::use_package("xml2")
 # usethis::use_package("dodgr")
+# usethis::use_package("cli")
 
 
 # osm_data=read.csv("https://raw.githubusercontent.com/ChiaJung-Yeh/PTAL/refs/heads/main/other_data/osm_region_geofabrik.csv")%>%
@@ -216,6 +217,7 @@ gtfs_summary=function(gtfs, test_date, time_period, tz){
   if (!require(data.table)) install.packages("data.table")
   if (!require(sf)) install.packages("sf")
 
+  wod=tolower(lubridate::wday(test_date, label=T, abbr=F, locale="en"))
   temp=gtfs$calendar_dates[exception_type==2]%>%
     mutate(date=as.Date(as.character(date), format="%Y%m%d"))%>%
     filter(date==test_date)
@@ -236,33 +238,47 @@ gtfs_summary=function(gtfs, test_date, time_period, tz){
     merge.data.table(unique(gtfs$routes[, c("route_id","route_type")]), by="route_id")%>%
     merge.data.table(gtfs_mode, by="route_type")
 
-  return(stop_times_sum)
+  stop_route=unique(merge.data.table(unique(gtfs$stop_times[, c("stop_id","trip_id")]), unique(gtfs$trips[, c("route_id","trip_id")]))[, c("stop_id","route_id")])%>%
+    merge.data.table(unique(gtfs$routes[, c("route_type","route_id")]))%>%
+    merge.data.table(gtfs_mode, by="route_type")%>%
+    dplyr::select(stop_id, mode_type, mode)%>%
+    unique()
+  stop_route=stop_route[, by=.(stop_id), .(mode_type=paste(sort(unique(mode_type)), collapse="|"))]
+
+  return(list(stop_times_sum=stop_times_sum, stop_route=stop_route))
 }
 
 
 
 #### Calculate PTAL ####
 #' @export
-gtfs_ptal=function(sarea_center, gtfs, stop_times_sum, road_net, gtfs_mode){
+gtfs_ptal=function(sarea_center, gtfs, stop_times_sum, stop_route, road_net, gtfs_mode,
+                   walk_kph=4.8, bus_dist=640, rail_dist=960, ferry_dist=960){
   if (!require(dplyr)) install.packages("dplyr")
   if (!require(data.table)) install.packages("data.table")
   if (!require(sf)) install.packages("sf")
 
+
   cat("Match PT stops for each grid...\n")
   temp_id=st_intersects(st_buffer(sarea_center, 1000), gtfs$stops)
-  grid_stop=data.table(GridID=rep(sarea_center$GridID, times=lengths(temp_id)),
-                       stop_id=gtfs$stops$stop_id[unlist(temp_id)])
+
   temp=st_transform(sarea_center[,"GridID"], crs=4326)%>%
     cbind(st_coordinates(.))%>%
-    st_drop_geometry()
-  grid_stop=merge.data.table(grid_stop, temp, sort=F)%>%
-    rename(X_O=X, Y_O=Y)%>%
-    merge.data.table(st_drop_geometry(gtfs$stops)[, c("stop_id","stop_lat","stop_lon")], sort=F)%>%
-    rename(X_D=stop_lon, Y_D=stop_lat)
+    st_drop_geometry()%>%
+    rename(X_O=X, Y_O=Y)
+  grid_stop=data.table(temp[rep(c(1:nrow(sarea_center)), times=lengths(temp_id)),],
+                       st_drop_geometry(gtfs$stops)[unlist(temp_id), c("stop_id","stop_name","stop_lat","stop_lon","parent_station")] %>% rename(X_D=stop_lon, Y_D=stop_lat))
+
+  # include all exit locations of the parent stations (i.e., find the shortest path based on the location of exit, instead of platform)
+  temp=st_drop_geometry(gtfs$stops)[parent_station %in% grid_stop$parent_station & location_type==2, c("stop_id","stop_lat","stop_lon","parent_station")]%>%
+    rename(stop_exit_id=stop_id, X_D=stop_lon, Y_D=stop_lat)
+  temp=grid_stop[parent_station %in% temp$parent_station, c("GridID","X_O","Y_O","stop_id","parent_station")]%>%
+    merge.data.table(temp, allow.cartesian=T)
+  grid_stop=bind_rows(grid_stop, temp)
 
   if(nrow(grid_stop)==0){
     grid_edf=select(sarea_center, GridID, X, Y)%>%
-      mutate(EDF=0, PTAL=0, PTAL_col="white")
+      mutate(EDF=0)
     return(grid_edf)
   }
 
@@ -274,39 +290,49 @@ gtfs_ptal=function(sarea_center, gtfs, stop_times_sum, road_net, gtfs_mode){
   temp=range(grid_stop$Y_O, grid_stop$Y_D)+c(-0.001,0.001)
   road_net_temp=road_net_temp[road_net_temp$from_lat>=temp[1] & road_net_temp$to_lat>=temp[1] & road_net_temp$from_lat<=temp[2] & road_net_temp$to_lat<=temp[2],]
 
+  # route_pair=dodgr_paths(road_net_temp, grid_stop[, c("X_O","Y_O")], grid_stop[, c("X_D","Y_D")], pairwise=T)
+  # route_pair_od=data.table(grid_stop[rep(c(1:nrow(grid_stop)), times=unlist(lapply(route_pair, function(x) length(x[[1]])))), c("GridID","stop_id")],
+  #                          from_id=unlist(route_pair))
+  # route_pair_od[, to_id := shift(from_id, type="lead"), by=.(GridID, stop_id)]
+  # route_pair_od=route_pair_od[!is.na(to_id)]
+  # route_pair_od=left_join(route_pair_od, road_net_sf)
+  # setDT(route_pair_od)
 
-  route_pair=dodgr_paths(road_net_temp, grid_stop[, c("X_O","Y_O")], grid_stop[, c("X_D","Y_D")], pairwise=T)
+  all_od=unique(grid_stop[, c("X_O","Y_O","X_D","Y_D")])
+  route_pair_dist=dodgr_dists(road_net_temp, all_od[, c("X_O","Y_O")], all_od[, c("X_D","Y_D")], pairwise=T)
+  all_od$Distance=as.numeric(route_pair_dist)
+  grid_stop=merge.data.table(grid_stop, all_od)
+  grid_stop=grid_stop[!is.na(Distance)]
 
-  route_pair_od=data.table(grid_stop[rep(c(1:nrow(grid_stop)), times=unlist(lapply(route_pair, function(x) length(x[[1]])))), c("GridID","stop_id")],
-                           from_id=unlist(route_pair))
-  route_pair_od[, to_id := shift(from_id, type="lead"), by=.(GridID, stop_id)]
-  route_pair_od=route_pair_od[!is.na(to_id)]
-  route_pair_od=left_join(route_pair_od, road_net_sf)
-  setDT(route_pair_od)
+  # select the distance with the closest exit
+  grid_stop=grid_stop[grid_stop[, .I[which.min(Distance)], by=.(GridID, stop_id)]$V1]
+
 
 
   cat("PTAL calculation...\n")
-  grid_stop=merge.data.table(grid_stop, route_pair_od[, by=.(GridID, stop_id), .(Distance=sum(Distance))], sort=F)%>%
-    dplyr::select(GridID, stop_id, Distance)
-
-  grid_stop_times=merge.data.table(grid_stop, stop_times_sum)
+  grid_stop_times=merge.data.table(grid_stop, stop_times_sum, by="stop_id")
   grid_stop_times=grid_stop_times[grid_stop_times[, .I[which.min(Distance)], by=.(GridID, route_id)]$V1]
-  grid_stop_times$TEMP=ifelse(grid_stop_times$mode_type %in% c("Urban Railway Service","Tram Service","Metro Service","Regional Rail Service"),
-                              as.numeric(grid_stop_times$Distance<=960), as.numeric(grid_stop_times$Distance<=640))
+
+  grid_stop_times=mutate(grid_stop_times, TEMP=case_when(
+    mode=="rail" & Distance<=rail_dist ~ 1,
+    mode=="bus" & Distance<=bus_dist ~ 1,
+    mode=="ferry" & Distance<=ferry_dist ~ 1,
+    TRUE ~ 0
+  ))
+
   grid_stop_times=grid_stop_times[TEMP==1]%>%
     dplyr::select(-TEMP)
-  grid_stop_times$Reliability=ifelse(grid_stop_times$mode_type %in% c("Urban Railway Service","Tram Service","Metro Service","Regional Rail Service"), 0.75, 2)
+  grid_stop_times$Reliability=ifelse(grid_stop_times$mode=="rail", 0.75, 2)
 
   # # PTAL considers directions in a simplified way. If a service runs in both directions, the most frequent direction is used in the calculation
   # grid_stop_times=grid_stop_times[grid_stop_times[, .I[which.max(Trips)], by=.(GridID, stop_id, route_id)]$V1]
 
-
-  grid_edf=mutate(grid_stop_times, WalkTime=Distance/1000/4.8*60,
+  grid_edf=mutate(grid_stop_times, WalkTime=Distance/1000/walk_kph*60,
                   SWT=60/Trips*0.5, AWT=SWT+Reliability, TAT=WalkTime+AWT,
                   EDF=0.5*(60/TAT))
   # group_by(GridID, mode_type)%>%
   # mutate(weight=ifelse(EDF==max(EDF), 1, 0.5))
-  grid_edf[, weight := ifelse(EDF==max(EDF), 1, 0.5), by=.(GridID, mode_type)]
+  suppressWarnings({grid_edf[, weight := ifelse(EDF==max(EDF), 1, 0.5), by=.(GridID, mode_type)]})
 
   grid_edf_sum=grid_edf[, by=.(GridID), .(EDF=sum(EDF*weight))]
   # grid_edf_sum=mutate(grid_edf_sum, PTAL=case_when(
@@ -324,10 +350,10 @@ gtfs_ptal=function(sarea_center, gtfs, stop_times_sum, road_net, gtfs_mode){
   #   left_join(data.frame(PTAL=c("0","1a","1b","2","3","4","5","6a","6b"),
   #                        PTAL_col=c("white","#16497D","#116FB8","#27ADE3","#91C953","#FFF101","#FBC08E","#EE1D23","#841517")))
 
-  grid_edf_sum=left_join(sarea_center, grid_edf_sum)%>%
+  grid_edf_sum=merge.data.table(st_drop_geometry(sarea_center)[, "GridID"], grid_edf_sum, sort=F, all.x=T)%>%
     mutate(EDF=ifelse(is.na(EDF), 0, EDF))
 
-  return(grid_edf_sum)
+  return(list(grid_edf=grid_edf, grid_edf_sum=grid_edf_sum))
 }
 
 
