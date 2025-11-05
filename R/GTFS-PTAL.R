@@ -80,6 +80,12 @@ OSM_Network=function(country, district=NULL, bbox=NULL, out=F){
     mutate(region=gsub("\\.", "", gsub("\\/", "-", region)))
   DIRTEMP=gsub("\\\\", "/", tempdir(check=T))
 
+  if(!is.null(bbox)){
+    if(st_crs(bbox)$epsg!=4326){
+      stop("Please ensure that the CRS of box is EPSG:4326!")
+    }
+  }
+
   if(is.null(district)){
     osm_region=filter(osm_region, region==country)
   }else{
