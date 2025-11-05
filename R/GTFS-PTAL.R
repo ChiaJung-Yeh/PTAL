@@ -22,7 +22,12 @@ library(dodgr)
 # osm_data=read.csv("https://raw.githubusercontent.com/ChiaJung-Yeh/PTAL/refs/heads/main/other_data/osm_region_geofabrik.csv")%>%
 #   mutate(region=gsub("\\.", "", gsub("\\/", "-", region)))%>%
 #   select(continent, region, subregion)
+greater_sydney=read_sf("G:/AU Data/Digital Boundary/Significant Urban Areas (SUA)")%>%
+  filter(SUA_NAME21=="Sydney")%>%
+  select(SUA_CODE21, SUA_NAME21)
+
 # usethis::use_data(osm_data, overwrite=T)
+# usethis::use_data(greater_sydney, overwrite=T)
 
 
 
@@ -357,9 +362,6 @@ gtfs_ptal=function(sarea_center, gtfs, stop_times_sum, stop_route, road_net, gtf
 
   return(list(grid_edf=grid_edf, grid_edf_sum=grid_edf_sum))
 }
-
-
-
 
 
 
