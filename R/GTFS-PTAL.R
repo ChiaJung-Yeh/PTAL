@@ -220,6 +220,9 @@ OSM_Network=function(country, district=NULL, bbox=NULL, out=F){
 #### Read GTFS Data ####
 #' @export
 read_gtfs=function(path){
+  if (!require(data.table)) install.packages("data.table")
+  if (!require(dplyr)) install.packages("dplyr")
+
   DIRTEMP=gsub("\\\\", "/", tempdir(check=T))
 
   if(grepl(".zip", path)){
