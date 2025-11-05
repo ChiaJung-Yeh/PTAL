@@ -38,7 +38,7 @@ Maintainer: Chia-Jung (Robert), Yeh  \email{chia-jung.yeh@sydney.edu.au}
 area_box=st_bbox(st_transform(greater_sydney, crs=4326))
 
 # Retrieve Greater Sydney road network
-OSM_Network(country="Australia", bbox=NULL)
+OSM_Network(country="Australia", bbox=area_box)
 }
 \keyword{network}
 
