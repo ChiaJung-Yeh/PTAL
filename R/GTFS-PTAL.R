@@ -22,9 +22,9 @@ library(dodgr)
 # osm_data=read.csv("https://raw.githubusercontent.com/ChiaJung-Yeh/PTAL/refs/heads/main/other_data/osm_region_geofabrik.csv")%>%
 #   mutate(region=gsub("\\.", "", gsub("\\/", "-", region)))%>%
 #   select(continent, region, subregion)
-greater_sydney=read_sf("G:/AU Data/Digital Boundary/Significant Urban Areas (SUA)")%>%
-  filter(SUA_NAME21=="Sydney")%>%
-  select(SUA_CODE21, SUA_NAME21)
+# greater_sydney=read_sf("G:/AU Data/Digital Boundary/Significant Urban Areas (SUA)")%>%
+#   filter(SUA_NAME21=="Sydney")%>%
+#   select(SUA_CODE21, SUA_NAME21)
 
 # usethis::use_data(osm_data, overwrite=T)
 # usethis::use_data(greater_sydney, overwrite=T)
@@ -75,6 +75,7 @@ OSM_Network=function(country, district=NULL, bbox=NULL, out=F){
   if (!require(sf)) install.packages("sf")
   if (!require(xml2)) install.packages("xml2")
   if (!require(reticulate)) install.packages("reticulate")
+  if (!require(dodgr)) install.packages("dodgr")
   options(timeout=1000)
 
   osm_region=read.csv("https://raw.githubusercontent.com/ChiaJung-Yeh/PTAL/refs/heads/main/other_data/osm_region_geofabrik.csv")%>%
@@ -181,30 +182,44 @@ OSM_Network=function(country, district=NULL, bbox=NULL, out=F){
   setDT(link_seg)
 
 
+  # Network data
+  road_link=rename(links, way=highway)%>%
+    filter(way!="")%>%
+    dplyr::select(-geometry)%>%
+    left_join(links_geo %>% mutate(linkid=as.numeric(linkid)))%>%
+    st_sf(crs=4326)
+
+  wts=distinct(st_drop_geometry(road_link), way)%>%
+    left_join(filter(dodgr::weighting_profiles[[1]], name=="foot"), by=c("way"))%>%
+    select(name, way, value)
+  road_net=weight_streetnet(road_link, wt_profile=wts, type_col="way", id_col="linkid")
+
+
   if (nchar(out)!=0 & out!=F){
     fwrite(nodes, paste0(out, "_node.csv"))
     fwrite(links, paste0(out, "_link.csv"))
     fwrite(link_seg, paste0(out, "_linksegment.csv"))
     write_sf(road_sf, paste0(out, "_osmline.gpkg"))
     write_sf(links_geo, paste0(out, "_linkgeo.shp"))
+    saveRDS(road_net, paste0(out, "_road_net.rds"))
   }
 
   unlink(DIRTEMP, recursive=T)
-  return(list(road_sf=road_sf, nodes=nodes, links=links, link_seg=link_seg, links_geo=links_geo))
+  return(list(road_sf=road_sf, nodes=nodes, links=links, link_seg=link_seg, links_geo=links_geo, road_net=road_net))
 }
 
 
 
 #### Read GTFS Data ####
 #' @export
-read_gtfs=function(x){
+read_gtfs=function(path){
   DIRTEMP=gsub("\\\\", "/", tempdir(check=T))
 
-  if(grepl(".zip", x)){
-    untar(x, exdir=paste0(DIRTEMP, "/gtfs"))
+  if(grepl(".zip", path)){
+    untar(path, exdir=paste0(DIRTEMP, "/gtfs"))
     dir_files=dir(paste0(DIRTEMP, "/gtfs"), full.names=T)
   }else{
-    dir_files=dir(x, full.names=T)
+    dir_files=dir(path, full.names=T)
   }
 
   fir_files=dir_files[grepl(paste(c("stop","routes","calendar","trips"), collapse="|"), dir_files)]
@@ -221,12 +236,20 @@ read_gtfs=function(x){
 
 #### GTFS Summary ####
 #' @export
-gtfs_summary=function(gtfs, test_date, time_period, tz){
+gtfs_summary=function(gtfs, test_date, time_period="08:15~09:15", tz){
   if (!require(dplyr)) install.packages("dplyr")
   if (!require(data.table)) install.packages("data.table")
   if (!require(sf)) install.packages("sf")
 
-  wod=tolower(lubridate::wday(test_date, label=T, abbr=F, locale="en"))
+  tryCatch({
+    wod=tolower(lubridate::wday(test_date, label=T, abbr=F, locale="en"))
+  }, error=function(err){
+    stop("The format of 'test_date' must be 'YYYY-MM-DD'.")
+  })
+  if(!grepl("^([01]\\d|2[0-3]):[0-5]\\d~([01]\\d|2[0-3]):[0-5]\\d$", x)){
+    stop("The format of 'time_period' must be 'hh:mm~hh:mm'.")
+  }
+
   temp=gtfs$calendar_dates[exception_type==2]%>%
     mutate(date=as.Date(as.character(date), format="%Y%m%d"))%>%
     filter(date==test_date)

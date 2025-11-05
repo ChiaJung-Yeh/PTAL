@@ -21,7 +21,7 @@ Planit_Setup(env)
   \item{env}{The enviroment name for python to execute PLANit.}
 }
 \author{
-Maintainer: Chia Jung, Yeh  \email{chia-jung.yeh@sydney.edu.au}
+Maintainer: Chia-Jung (Robert), Yeh  \email{chia-jung.yeh@sydney.edu.au}
 }
 \details{
 %%  ~~ If necessary, more details than the __description__ above ~~
