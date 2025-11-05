@@ -17,7 +17,6 @@ library(dodgr)
 # usethis::use_package("reticulate")
 # usethis::use_package("xml2")
 # usethis::use_package("dodgr")
-# usethis::use_package("cli")
 
 
 # osm_data=read.csv("https://raw.githubusercontent.com/ChiaJung-Yeh/PTAL/refs/heads/main/other_data/osm_region_geofabrik.csv")%>%
@@ -277,9 +276,8 @@ gtfs_ptal=function(sarea_center, gtfs, stop_times_sum, stop_route, road_net, gtf
   grid_stop=bind_rows(grid_stop, temp)
 
   if(nrow(grid_stop)==0){
-    grid_edf=select(sarea_center, GridID, X, Y)%>%
-      mutate(EDF=0)
-    return(grid_edf)
+    grid_edf_sum=data.frame(GridID=sarea_center$GridID, EDF=0)
+    return(list(grid_edf_sum=grid_edf_sum, grid_edf=NA))
   }
 
 
@@ -328,10 +326,9 @@ gtfs_ptal=function(sarea_center, gtfs, stop_times_sum, stop_route, road_net, gtf
   # grid_stop_times=grid_stop_times[grid_stop_times[, .I[which.max(Trips)], by=.(GridID, stop_id, route_id)]$V1]
 
   grid_edf=mutate(grid_stop_times, WalkTime=Distance/1000/walk_kph*60,
-                  SWT=60/Trips*0.5, AWT=SWT+Reliability, TAT=WalkTime+AWT,
+                  SWT=0.5*(60/Trips), AWT=SWT+Reliability, TAT=WalkTime+AWT,
                   EDF=0.5*(60/TAT))
-  # group_by(GridID, mode_type)%>%
-  # mutate(weight=ifelse(EDF==max(EDF), 1, 0.5))
+
   suppressWarnings({grid_edf[, weight := ifelse(EDF==max(EDF), 1, 0.5), by=.(GridID, mode_type)]})
 
   grid_edf_sum=grid_edf[, by=.(GridID), .(EDF=sum(EDF*weight))]
