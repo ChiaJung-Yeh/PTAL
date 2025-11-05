@@ -62,6 +62,13 @@ subprocess.Popen = safe_popen
 planit_instance = Planit()
 network_converter = planit_instance.converter_factory.create(ConverterType.NETWORK)
 ")
+
+  tryCatch({
+    py_run_string(paste0("osm_reader = network_converter.create_reader(NetworkReaderType.OSM, '", country, "')"))
+  }, error=function(err){
+    stop("Please restart R to ensure PLANit runs correctly..")
+  })
+
   print("Setup Successfully!!")
 }
 
@@ -186,7 +193,7 @@ OSM_Network=function(country, district=NULL, bbox=NULL, out=F){
   road_link=rename(links, way=highway)%>%
     filter(way!="")%>%
     dplyr::select(-geometry)%>%
-    left_join(links_geo %>% mutate(linkid=as.numeric(linkid)))%>%
+    left_join(links_geo)%>%
     st_sf(crs=4326)
 
   wts=distinct(st_drop_geometry(road_link), way)%>%
