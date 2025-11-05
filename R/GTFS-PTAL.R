@@ -58,10 +58,6 @@ planit_instance = Planit()
 network_converter = planit_instance.converter_factory.create(ConverterType.NETWORK)
 ")
   print("Setup Successfully!!")
-
-  if(sum(dir(getwd())=="osmconvert.exe")==0){
-    download.file("https://raw.githubusercontent.com/ChiaJung-Yeh/PTAL/refs/heads/main/other_data/osmconvert64-0.8.8p.exe", paste0(getwd(), "/osmconvert.exe"), mode="wb")
-  }
 }
 
 
@@ -104,6 +100,10 @@ OSM_Network=function(country, district=NULL, bbox=NULL, out=F){
 
   if(!is.null(bbox)){
     cat("Clip OSM Data...\n")
+    if(sum(dir(getwd())=="osmconvert.exe")==0){
+      download.file("https://raw.githubusercontent.com/ChiaJung-Yeh/PTAL/refs/heads/main/other_data/osmconvert64-0.8.8p.exe", paste0(getwd(), "/osmconvert.exe"), mode="wb")
+    }
+
     system2(paste0(getwd(), "/osmconvert.exe"),
             c(paste0(DIRTEMP, "/", country, ".osm.pbf"),
               paste0("-b=", paste(bbox, collapse=",")),
