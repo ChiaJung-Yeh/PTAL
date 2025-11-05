@@ -66,7 +66,7 @@ network_converter = planit_instance.converter_factory.create(ConverterType.NETWO
   tryCatch({
     py_run_string(paste0("osm_reader = network_converter.create_reader(NetworkReaderType.OSM, '", country, "')"))
   }, error=function(err){
-    stop("Please restart R to ensure PLANit runs correctly..")
+    stop("Please restart R to ensure PLANit runs correctly.")
   })
 
   print("Setup Successfully!!")
