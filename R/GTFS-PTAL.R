@@ -271,10 +271,12 @@ gtfs_summary=function(gtfs, gtfs_mode, test_date, time_period="08:15~09:15", tz)
            end_date=as.Date(as.character(end_date), format="%Y%m%d"))%>%
     filter(end_date>=test_date, start_date<=test_date, !!sym(wod)==1, !service_id %in% temp$service_id)
 
-  trips=gtfs$trips[service_id %in% calendar$service_id]
+  trips=gtfs$trips
+  trips=trips[service_id %in% calendar$service_id]
 
   temp=unlist(strsplit(time_period, "~"))
-  stop_times=gtfs$stop_times[trip_id %in% trips$trip_id]%>%
+  stop_times=gtfs$stop_times
+  stop_times=stop_times[trip_id %in% trips$trip_id]%>%
     mutate(arrival_time=force_tz(fastPOSIXct(paste0(test_date, " ", arrival_time), tz="GMT"), tz),
            departure_time=force_tz(fastPOSIXct(paste0(test_date, " ", departure_time), tz="GMT"), tz))
   stop_times=stop_times[arrival_time>=as.POSIXct(paste0(test_date, " ", temp[1]), tz) & arrival_time<=as.POSIXct(paste0(test_date, " ", temp[2]), tz)]%>%
