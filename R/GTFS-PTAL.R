@@ -263,11 +263,7 @@ gtfs_summary=function(gtfs, gtfs_mode, test_date, time_period="08:15~09:15", tz)
     stop("The format of 'time_period' must be 'hh:mm~hh:mm'.")
   }
 
-  for(i in c(1:length(gtfs))){
-    setDT(gtfs[[i]])
-  }
-
-  temp=gtfs$calendar_dates[exception_type==2]%>%
+  temp=filter(gtfs$calendar_dates, exception_type==2)%>%
     mutate(date=as.Date(as.character(date), format="%Y%m%d"))%>%
     filter(date==test_date)
   calendar=gtfs$calendar%>%
