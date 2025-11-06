@@ -329,6 +329,7 @@ gtfs_ptal=function(sarea_center, gtfs, stop_times_sum, stop_route, road_net, gtf
 
 
   cat("Match PT stops for each grid...\n")
+  sarea_center$GridID=as.character(sarea_center$GridID)
   temp_id=st_intersects(st_buffer(sarea_center, 1000), gtfs$stops)
 
   temp=st_transform(sarea_center[,"GridID"], crs=4326)%>%
