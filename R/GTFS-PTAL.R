@@ -246,7 +246,7 @@ read_gtfs=function(path, crs){
     st_as_sf(coords=c("stop_lon", "stop_lat"), crs=4326, remove=F)%>%
     st_transform(crs=crs)
 
-  if(length(st_crs(sarea_center)$units)==0){
+  if(length(st_crs(all_dt$stops)$units)==0){
     warning("The specified CRS is not projected coordinate reference system. Please use an appropriate CRS for calculating distances correctly.")
   }
 
@@ -291,13 +291,13 @@ gtfs_summary=function(gtfs, gtfs_mode, test_date, time_period="08:15~09:15", tz)
     mutate(arrival_time=force_tz(fastPOSIXct(paste0(test_date, " ", arrival_time), tz="GMT"), tz),
            departure_time=force_tz(fastPOSIXct(paste0(test_date, " ", departure_time), tz="GMT"), tz))
   stop_times=stop_times[arrival_time>=as.POSIXct(paste0(test_date, " ", temp[1]), tz) & stop_times$arrival_time<=as.POSIXct(paste0(test_date, " ", temp[2]), tz)]%>%
-    merge.data.table(unique(trips[, c("route_id","trip_id","direction_id")]))
+    merge.data.table(unique(trips[, c("route_id","trip_id","direction_id")]), by="trip_id")
   stop_times_sum=stop_times[, by=.(stop_id, route_id, direction_id), .(Trips=.N)]%>%
     merge.data.table(unique(gtfs$routes[, c("route_id","route_type")]), by="route_id")%>%
     merge.data.table(gtfs_mode, by="route_type")
 
-  stop_route=unique(merge.data.table(unique(gtfs$stop_times[, c("stop_id","trip_id")]), unique(gtfs$trips[, c("route_id","trip_id")]))[, c("stop_id","route_id")])%>%
-    merge.data.table(unique(gtfs$routes[, c("route_type","route_id")]))%>%
+  stop_route=unique(merge.data.table(unique(gtfs$stop_times[, c("stop_id","trip_id")]), unique(gtfs$trips[, c("route_id","trip_id")]), by="trip_id")[, c("stop_id","route_id")])%>%
+    merge.data.table(unique(gtfs$routes[, c("route_type","route_id")]), by="route_id")%>%
     merge.data.table(gtfs_mode, by="route_type")%>%
     dplyr::select(stop_id, mode_type, mode)%>%
     unique()
@@ -321,10 +321,10 @@ gtfs_ptal=function(sarea_center, gtfs, stop_times_sum, stop_route, road_net, gtf
     stop("Please provide a 'sf' data for 'sarea_center'.")
   }
   if(length(st_crs(sarea_center)$units)==0){
-    warning("The specified CRS is not projected coordinate reference system. Please use an appropriate CRS for calculating distances correctly.")
+    stop("The specified CRS is not projected coordinate reference system. Please use an appropriate CRS for calculating distances correctly.")
   }
   if(st_crs(gtfs$stops)$epsg!=st_crs(sarea_center)$epsg){
-    warning("Please make sure that the CRS of both data 'sarea_center' and 'gtfs$stops' are identical.")
+    stop("Please make sure that the CRS of both data 'sarea_center' and 'gtfs$stops' are identical.")
   }
 
 
@@ -342,7 +342,7 @@ gtfs_ptal=function(sarea_center, gtfs, stop_times_sum, stop_route, road_net, gtf
   temp=st_drop_geometry(gtfs$stops)[gtfs$stops$parent_station %in% grid_stop$parent_station & location_type==2, c("stop_id","stop_lat","stop_lon","parent_station")]%>%
     rename(stop_exit_id=stop_id, X_D=stop_lon, Y_D=stop_lat)
   temp=grid_stop[parent_station %in% temp$parent_station, c("GridID","X_O","Y_O","stop_id","parent_station")]%>%
-    merge.data.table(temp, allow.cartesian=T)
+    merge.data.table(temp, by="parent_station", allow.cartesian=T)
   grid_stop=bind_rows(grid_stop, temp)
 
   if(nrow(grid_stop)==0){
@@ -369,7 +369,7 @@ gtfs_ptal=function(sarea_center, gtfs, stop_times_sum, stop_route, road_net, gtf
   all_od=unique(grid_stop[, c("X_O","Y_O","X_D","Y_D")])
   route_pair_dist=dodgr_dists(road_net_temp, all_od[, c("X_O","Y_O")], all_od[, c("X_D","Y_D")], pairwise=T)
   all_od$Distance=as.numeric(route_pair_dist)
-  grid_stop=merge.data.table(grid_stop, all_od)
+  grid_stop=merge.data.table(grid_stop, all_od, by=c("X_O","Y_O","X_D","Y_D"))
   grid_stop=grid_stop[!is.na(Distance)]
 
   # select the distance with the closest exit
@@ -417,7 +417,7 @@ gtfs_ptal=function(sarea_center, gtfs, stop_times_sum, stop_route, road_net, gtf
   #   left_join(data.frame(PTAL=c("0","1a","1b","2","3","4","5","6a","6b"),
   #                        PTAL_col=c("white","#16497D","#116FB8","#27ADE3","#91C953","#FFF101","#FBC08E","#EE1D23","#841517")))
 
-  grid_edf_sum=merge.data.table(st_drop_geometry(sarea_center)[, "GridID"], grid_edf_sum, sort=F, all.x=T)%>%
+  grid_edf_sum=merge.data.table(st_drop_geometry(sarea_center)[, "GridID"], grid_edf_sum, by="GridID", sort=F, all.x=T)%>%
     mutate(EDF=ifelse(is.na(EDF), 0, EDF))
 
   return(list(grid_edf=grid_edf, grid_edf_sum=grid_edf_sum))
