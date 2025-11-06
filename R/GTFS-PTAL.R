@@ -219,7 +219,7 @@ OSM_Network=function(country, district=NULL, bbox=NULL, out=F){
 
 #### Read GTFS Data ####
 #' @export
-read_gtfs=function(path){
+read_gtfs=function(path, crs){
   if (!require(data.table)) install.packages("data.table")
   if (!require(dplyr)) install.packages("dplyr")
 
@@ -236,6 +236,14 @@ read_gtfs=function(path){
   all_dt=list()
   for(i in fir_files){
     all_dt[[gsub(".csv|.txt", "", tail(unlist(strsplit(i, "/")), 1))]]=fread(i)
+  }
+
+  all_dt$stops=filter(all_dt$stops, !is.na(stop_lon), !is.na(stop_lat))%>%
+    st_as_sf(coords=c("stop_lon", "stop_lat"), crs=4326, remove=F)%>%
+    st_transform(crs=crs)
+
+  if(st_crs(all_dt$stops)$units!="m"){
+    warning("The specified CRS is not projected coordinate reference system. Please use an appropriate CRS for calculating distances correctly.")
   }
 
   unlink(DIRTEMP, recursive=T)
@@ -271,15 +279,13 @@ gtfs_summary=function(gtfs, gtfs_mode, test_date, time_period="08:15~09:15", tz)
            end_date=as.Date(as.character(end_date), format="%Y%m%d"))%>%
     filter(end_date>=test_date, start_date<=test_date, !!sym(wod)==1, !service_id %in% temp$service_id)
 
-  trips=gtfs$trips
-  trips=trips[service_id %in% calendar$service_id]
+  trips=gtfs$trips[gtfs$trips$service_id %in% calendar$service_id]
 
   temp=unlist(strsplit(time_period, "~"))
-  stop_times=gtfs$stop_times
-  stop_times=stop_times[trip_id %in% trips$trip_id]%>%
+  stop_times=gtfs$stop_times[gtfs$stop_times$trip_id %in% trips$trip_id]%>%
     mutate(arrival_time=force_tz(fastPOSIXct(paste0(test_date, " ", arrival_time), tz="GMT"), tz),
            departure_time=force_tz(fastPOSIXct(paste0(test_date, " ", departure_time), tz="GMT"), tz))
-  stop_times=stop_times[arrival_time>=as.POSIXct(paste0(test_date, " ", temp[1]), tz) & arrival_time<=as.POSIXct(paste0(test_date, " ", temp[2]), tz)]%>%
+  stop_times=stop_times[stop_times$arrival_time>=as.POSIXct(paste0(test_date, " ", temp[1]), tz) & stop_times$arrival_time<=as.POSIXct(paste0(test_date, " ", temp[2]), tz)]%>%
     merge.data.table(unique(trips[, c("route_id","trip_id","direction_id")]))
   stop_times_sum=stop_times[, by=.(stop_id, route_id, direction_id), .(Trips=.N)]%>%
     merge.data.table(unique(gtfs$routes[, c("route_id","route_type")]), by="route_id")%>%
@@ -317,7 +323,7 @@ gtfs_ptal=function(sarea_center, gtfs, stop_times_sum, stop_route, road_net, gtf
                        st_drop_geometry(gtfs$stops)[unlist(temp_id), c("stop_id","stop_name","stop_lat","stop_lon","parent_station")] %>% rename(X_D=stop_lon, Y_D=stop_lat))
 
   # include all exit locations of the parent stations (i.e., find the shortest path based on the location of exit, instead of platform)
-  temp=st_drop_geometry(gtfs$stops)[parent_station %in% grid_stop$parent_station & location_type==2, c("stop_id","stop_lat","stop_lon","parent_station")]%>%
+  temp=st_drop_geometry(gtfs$stops)[gtfs$stops$parent_station %in% grid_stop$parent_station & location_type==2, c("stop_id","stop_lat","stop_lon","parent_station")]%>%
     rename(stop_exit_id=stop_id, X_D=stop_lon, Y_D=stop_lat)
   temp=grid_stop[parent_station %in% temp$parent_station, c("GridID","X_O","Y_O","stop_id","parent_station")]%>%
     merge.data.table(temp, allow.cartesian=T)

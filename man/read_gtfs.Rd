@@ -8,13 +8,14 @@ Read GTFS data
 Read GTFS data from local directory. The output data includes \code{stops}, \code{stop_times}, \code{routes}, \code{calendar}, \code{calendar_dates}, and \code{trips}, which are the essential data to calculate PTAL.
 }
 \usage{
-read_gtfs(path)
+read_gtfs(path, crs)
 }
 \format{
 %%  ~~ If necessary, more details than the __description__ above ~~
 }
 \arguments{
   \item{path}{The directory path to the GTFS file. The path can point to a \code{.zip} file, which will be automatically extracted by this function, or to a directory containing the already extracted GTFS files.}
+  \item{crs}{The projected coordinate reference system, whose the unit is metre.}
 }
 \author{
 Maintainer: Chia-Jung (Robert), Yeh  \email{chia-jung.yeh@sydney.edu.au}
