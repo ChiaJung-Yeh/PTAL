@@ -417,7 +417,9 @@ gtfs_ptal=function(sarea_center, gtfs, stop_times_sum, stop_route, road_net, gtf
   #   left_join(data.frame(PTAL=c("0","1a","1b","2","3","4","5","6a","6b"),
   #                        PTAL_col=c("white","#16497D","#116FB8","#27ADE3","#91C953","#FFF101","#FBC08E","#EE1D23","#841517")))
 
-  grid_edf_sum=merge.data.table(st_drop_geometry(sarea_center)[, "GridID"], grid_edf_sum, sort=F, all.x=T)%>%
+  # grid_edf_sum=merge.data.table(st_drop_geometry(sarea_center)[, "GridID"], grid_edf_sum, sort=F, all.x=T)%>%
+  #   mutate(EDF=ifelse(is.na(EDF), 0, EDF))
+  grid_edf_sum=left_join(st_drop_geometry(sarea_center)[, "GridID"], grid_edf_sum)%>%
     mutate(EDF=ifelse(is.na(EDF), 0, EDF))
 
   return(list(grid_edf=grid_edf, grid_edf_sum=grid_edf_sum))
