@@ -256,7 +256,7 @@ gtfs_summary=function(gtfs, test_date, time_period="08:15~09:15", tz){
   }, error=function(err){
     stop("The format of 'test_date' must be 'YYYY-MM-DD'.")
   })
-  if(!grepl("^([01]\\d|2[0-3]):[0-5]\\d~([01]\\d|2[0-3]):[0-5]\\d$", x)){
+  if(!grepl("^([01]\\d|2[0-3]):[0-5]\\d~([01]\\d|2[0-3]):[0-5]\\d$", time_period)){
     stop("The format of 'time_period' must be 'hh:mm~hh:mm'.")
   }
 
