@@ -250,6 +250,9 @@ gtfs_summary=function(gtfs, test_date, time_period="08:15~09:15", tz){
   if (!require(dplyr)) install.packages("dplyr")
   if (!require(data.table)) install.packages("data.table")
   if (!require(sf)) install.packages("sf")
+  if (!require(lubridate)) install.packages("lubridate")
+  if (!require(fasttime)) install.packages("fasttime")
+
 
   tryCatch({
     wod=tolower(lubridate::wday(test_date, label=T, abbr=F, locale="en"))
