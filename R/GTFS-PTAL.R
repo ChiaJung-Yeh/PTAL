@@ -315,6 +315,7 @@ gtfs_ptal=function(sarea_center, gtfs, stop_times_sum, stop_route, road_net, gtf
   if (!require(dplyr)) install.packages("dplyr")
   if (!require(data.table)) install.packages("data.table")
   if (!require(sf)) install.packages("sf")
+  if (!require(dodgr)) install.packages("dodgr")
 
   if(sum(class(sarea_center)=="sf")==0){
     stop("Please provide a 'sf' data for 'sarea_center'.")
