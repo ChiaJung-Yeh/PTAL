@@ -246,7 +246,7 @@ read_gtfs=function(path){
 
 #### GTFS Summary ####
 #' @export
-gtfs_summary=function(gtfs, test_date, time_period="08:15~09:15", tz){
+gtfs_summary=function(gtfs, gtfs_mode, test_date, time_period="08:15~09:15", tz){
   if (!require(dplyr)) install.packages("dplyr")
   if (!require(data.table)) install.packages("data.table")
   if (!require(sf)) install.packages("sf")
