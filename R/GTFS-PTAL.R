@@ -8,6 +8,8 @@ library(reticulate)
 library(xml2)
 library(dodgr)
 
+#' @import data.table
+
 # usethis::use_package("dplyr")
 # usethis::use_package("data.table")
 # usethis::use_package("sf")
@@ -76,7 +78,6 @@ network_converter = planit_instance.converter_factory.create(ConverterType.NETWO
 
 #### Download OSM Network ####
 #' @export
-#' @import data.table
 OSM_Network=function(country, district=NULL, bbox=NULL, out=F){
   if (!require(dplyr)) install.packages("dplyr")
   if (!require(data.table)) install.packages("data.table")
@@ -220,7 +221,6 @@ OSM_Network=function(country, district=NULL, bbox=NULL, out=F){
 
 #### Read GTFS Data ####
 #' @export
-#' @import data.table
 read_gtfs=function(path, crs){
   if (!require(data.table)) install.packages("data.table")
   if (!require(dplyr)) install.packages("dplyr")
@@ -257,7 +257,6 @@ read_gtfs=function(path, crs){
 
 #### GTFS Summary ####
 #' @export
-#' @import data.table
 gtfs_summary=function(gtfs, gtfs_mode, test_date, time_period="08:15~09:15", tz){
   if (!require(dplyr)) install.packages("dplyr")
   if (!require(data.table)) install.packages("data.table")
@@ -310,7 +309,6 @@ gtfs_summary=function(gtfs, gtfs_mode, test_date, time_period="08:15~09:15", tz)
 
 #### Calculate PTAL ####
 #' @export
-#' @import data.table
 gtfs_ptal=function(sarea_center, gtfs, stop_times_sum, stop_route, road_net, gtfs_mode,
                    walk_kph=4.8, bus_dist=640, rail_dist=960, ferry_dist=960){
   if (!require(dplyr)) install.packages("dplyr")
