@@ -192,6 +192,7 @@ OSM_Network=function(country, district=NULL, bbox=NULL, out=F){
 
 
   # Network data
+  cat("Create Network Dataset...\n")
   road_link=rename(links, way=highway)%>%
     filter(way!="")%>%
     dplyr::select(-geometry)%>%
@@ -199,7 +200,7 @@ OSM_Network=function(country, district=NULL, bbox=NULL, out=F){
     st_sf(crs=4326)
 
   wts=distinct(st_drop_geometry(road_link), way)%>%
-    left_join(filter(dodgr::weighting_profiles[[1]], name=="foot"), by=c("way"))%>%
+    left_join(filter(dodgr::weighting_profiles[[1]], name=="foot"), by=c("way"), by="linkid")%>%
     select(name, way, value)
   road_net=weight_streetnet(road_link, wt_profile=wts, type_col="way", id_col="linkid")
 
@@ -245,7 +246,7 @@ read_gtfs=function(path, crs){
     st_as_sf(coords=c("stop_lon", "stop_lat"), crs=4326, remove=F)%>%
     st_transform(crs=crs)
 
-  if(st_crs(all_dt$stops)$units!="m"){
+  if(length(st_crs(sarea_center)$units)==0){
     warning("The specified CRS is not projected coordinate reference system. Please use an appropriate CRS for calculating distances correctly.")
   }
 
@@ -314,6 +315,16 @@ gtfs_ptal=function(sarea_center, gtfs, stop_times_sum, stop_route, road_net, gtf
   if (!require(dplyr)) install.packages("dplyr")
   if (!require(data.table)) install.packages("data.table")
   if (!require(sf)) install.packages("sf")
+
+  if(sum(class(sarea_center)=="sf")==0){
+    stop("Please provide a 'sf' data for 'sarea_center'.")
+  }
+  if(length(st_crs(sarea_center)$units)==0){
+    warning("The specified CRS is not projected coordinate reference system. Please use an appropriate CRS for calculating distances correctly.")
+  }
+  if(st_crs(gtfs$stops)$epsg!=st_crs(sarea_center)$epsg){
+    warning("Please make sure that the CRS of both data 'sarea_center' and 'gtfs$stops' are identical.")
+  }
 
 
   cat("Match PT stops for each grid...\n")
