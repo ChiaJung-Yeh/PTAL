@@ -222,6 +222,7 @@ OSM_Network=function(country, district=NULL, bbox=NULL, out=F){
 read_gtfs=function(path, crs){
   if (!require(data.table)) install.packages("data.table")
   if (!require(dplyr)) install.packages("dplyr")
+  if (!require(sf)) install.packages("sf")
 
   DIRTEMP=gsub("\\\\", "/", tempdir(check=T))
 
