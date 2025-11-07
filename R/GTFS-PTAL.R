@@ -200,7 +200,7 @@ OSM_Network=function(country, district=NULL, bbox=NULL, out=F){
     st_sf(crs=4326)
 
   wts=distinct(st_drop_geometry(road_link), way)%>%
-    left_join(filter(dodgr::weighting_profiles[[1]], name=="foot"), by=c("way"), by="linkid")%>%
+    left_join(filter(dodgr::weighting_profiles[[1]], name=="foot"), by="way")%>%
     select(name, way, value)
   road_net=weight_streetnet(road_link, wt_profile=wts, type_col="way", id_col="linkid")
 
